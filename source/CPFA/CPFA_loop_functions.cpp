@@ -101,6 +101,9 @@ void CPFA_loop_functions::Init(argos::TConfigurationNode &node) {
 		argos::LOG << "Nest Position: " << pos.GetX() << ", " << pos.GetY() << std::endl;
 	}
 
+    // Initialize dock last-used times to 0
+    dockLastUsedTime.assign(NestPositions.size(), 0);
+
     FoodRadiusSquared = FoodRadius*FoodRadius;
     //Number of distributed foods
     if (FoodDistribution == 1){
@@ -185,6 +188,7 @@ void CPFA_loop_functions::Reset() {
         MoveEntity(footBot.GetEmbodiedEntity(), c2.GetStartPosition(), argos::CQuaternion(), false);
     c2.Reset();
     }
+    dockLastUsedTime.assign(NestPositions.size(), 0);
 }
 
 void CPFA_loop_functions::PreStep() {
@@ -215,11 +219,38 @@ void CPFA_loop_functions::PreStep() {
       position = c2.GetPosition();
       robotPosList[c2.GetId()] = position;
       //robotPosList.push_back(position);
+
+      // Check if robot is in any nest and update dock last-used time
+      for (size_t i = 0; i < NestPositions.size(); ++i) {
+          if ((position - NestPositions[i]).SquareLength() < NestRadiusSquared) {
+              dockLastUsedTime[i] = GetSpace().GetSimulationClock();
+          }
+      }
+
     }
-    
-    //for(map<string, CVector2>::iterator it= robotPosList.begin(); it!=robotPosList.end(); ++it) {
-	//	argos::LOG << "pos["<< it->first <<"]="<< it->second << endl;
-	//}
+	// check path usage and print if a path is not used for X seconds
+	size_t ticks_per_second = GetSimulator().GetPhysicsEngine("dyn2d").GetInverseSimulationClockTick();
+	size_t unused_threshold = 60 * ticks_per_second;
+	for(auto& path : pathUsage) {
+		if(GetSpace().GetSimulationClock() - path.second.GetX() > unused_threshold) {
+			argos::LOG << "[INFO] Path " << path.first << " has not been used for " 
+						<< (GetSpace().GetSimulationClock() - path.second.GetX()) / ticks_per_second 
+						<< " seconds." << std::endl;
+		}
+	}
+
+    // Check for unused docks and print if not used for X seconds
+     // e.g., 60 seconds or 1920 ticks
+    // for (size_t i = 0; i < dockLastUsedTime.size(); ++i) {
+    //     if (GetSpace().GetSimulationClock() - dockLastUsedTime[i] > unused_threshold) {
+            // argos::LOG << "[INFO] Dock " << i << " has not been used for " 
+            //            << (GetSpace().GetSimulationClock() - dockLastUsedTime[i]) / ticks_per_second
+            //            << " seconds." << std::endl;
+    //     }
+    // }
+
+	// if a queue hasnt been used for X seconds, print a warning
+	size_t queue_unused_threshold = 120 * ticks_per_second; // e.g., 120 seconds or 3840 ticks
          
     if(FoodList.size() == 0) {
 	FidelityList.clear();

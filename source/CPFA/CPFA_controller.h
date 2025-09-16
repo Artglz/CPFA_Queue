@@ -167,6 +167,11 @@ class CPFA_controller : public BaseController {
 		std::vector<argos::CVector2> exitPath4 = {{0.2, -0.2}, {1.6, -1.6}};
 		std::vector<argos::CVector2> exitPoints = {{1.6, 1.6}, {-1.6, -1.6}, {-1.6, 1.6}, {1.6, -1.6}};
 
+		std::vector<argos::CVector2> exitPath1Straight = {{0,0}, {1.6, 0.0}};
+		std::vector<argos::CVector2> exitPath2Straight = {{0,0}, {-1.6, 0.0}};
+		std::vector<argos::CVector2> exitPath3Straight = {{0,0}, {0.0, 1.6}};
+		std::vector<argos::CVector2> exitPath4Straight = {{0,0}, {0.0, -1.6}};
+
 		std::vector<argos::CVector2> actualExitPath;
 		bool followingEntryPath1 = false;
 		bool followingEntryPath2 = false;
@@ -282,6 +287,10 @@ class CPFA_controller : public BaseController {
 		bool timeSet;
 		Real timeInsideRedCircle;
 		Real totalTimeInsideRedCircle;
+		
+		bool IsLeftOfLine(const argos::CVector2& A, const argos::CVector2& B, const argos::CVector2& P);
+		Real DistanceFromPointToSegment(const argos::CVector2& P, const argos::CVector2& A, const argos::CVector2& B);
+		bool IsLeftOfPath(const std::vector<argos::CVector2>& path, const argos::CVector2& pos);
 };
 
 #endif /* CPFA_CONTROLLER_H */

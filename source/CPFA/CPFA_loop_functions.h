@@ -73,7 +73,12 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 		std::vector<argos::CVector2> entryPoints = {	
 
 		};
+		size_t entryPath1UsageCount;
+		size_t entryPath2UsageCount;
+		size_t entryPath3UsageCount;
+		size_t entryPath4UsageCount;
 
+		map<string, argos::CVector2> pathUsage;
 	protected:
 		void setScore(double s);
 
@@ -147,6 +152,7 @@ class CPFA_loop_functions : public argos::CLoopFunctions
                 vector<size_t>		ForageList;
 		argos::CVector2 NestPosition;
 		std::vector<argos::CVector2> NestPositions;
+		std::vector<size_t> dockLastUsedTime; // Track last-used time for each dock
 	private:			
 
 

@@ -1,7 +1,7 @@
 #include "CPFA_controller.h"
 #include <unistd.h>
 #include <fstream>
-
+#include <argos3/core/simulator/simulator.h> 
 //#include <argos3/core/utility/logging/argos_log.h>
 
 
@@ -307,6 +307,40 @@ bool CPFA_controller::CollisionDetection() {
 	}
 }
 
+bool CPFA_controller::IsLeftOfLine(const argos::CVector2& A, const argos::CVector2& B, const argos::CVector2& P) {
+	// argos::LOG << "IsLeftOfLine called with A: " << A << ", B: " << B << ", P: " << P << std::endl;
+    Real side = (B.GetX() - A.GetX()) * (P.GetY() - A.GetY()) -
+                (B.GetY() - A.GetY()) * (P.GetX() - A.GetX());
+    return side > 0; // left = true, right = false
+}
+Real CPFA_controller::DistanceFromPointToSegment(const argos::CVector2& P, const argos::CVector2& A, const argos::CVector2& B) {
+	// argos::LOG << "DistanceFromPointToSegment called with P: " << P << ", A: " << A << ", B: " << B << std::endl;
+    argos::CVector2 AB = B - A;
+    argos::CVector2 AP = P - A;
+
+	Real t = (AB.DotProduct(AP)) / (AB.SquareLength());
+	t = std::max(0.0, std::min(1.0, t)); // Clamp to segment
+
+    argos::CVector2 closest = A + AB * t;
+    return (P - closest).Length();
+}
+bool CPFA_controller::IsLeftOfPath(const std::vector<argos::CVector2>& path, const argos::CVector2& pos) {
+	// argos::LOG << "IsLeftOfPath called with path size: " << path.size() << std::endl;
+
+    Real min_dist = std::numeric_limits<Real>::max();
+    size_t best_index = 0;
+
+    for(size_t i = 0; i < path.size() - 1; ++i) {
+        Real dist = DistanceFromPointToSegment(pos, path[i], path[i+1]);
+        if(dist < min_dist) {
+            min_dist = dist;
+            best_index = i;
+        }
+    }
+
+    return IsLeftOfLine(path[best_index], path[best_index + 1], pos);
+}
+
 void CPFA_controller::SetLoopFunctions(CPFA_loop_functions* lf) {
 	LoopFunctions = lf;
 
@@ -436,7 +470,8 @@ void CPFA_controller::Departing()
 }
 
 void CPFA_controller::FollowingEntryPath() {
-	
+
+
 	if (SimulationTick() % 40 == 0) {
 		// argos::LOG << GetId() << " is stopping." << std::endl;
 		Stop();
@@ -524,7 +559,7 @@ void CPFA_controller::FollowingEntryPath() {
 	if (IsAtTarget()) {
 
 		if (currentWaypointIndex >= actualPath.size()) {
-			argos::LOG << "Robot " << GetId() << " has reached the end of the entry path. waypoint: "<< currentWaypointIndex << " out of " << actualPath.size() << std::endl;
+			// argos::LOG << "Robot " << GetId() << " has reached the end of the entry path. waypoint: "<< currentWaypointIndex << " out of " << actualPath.size() << std::endl;
 			// SetTarget(LoopFunctions->NestPositions[1]);
 			// set target to last point in actualPath
 			SetTarget(actualPath.back());
@@ -1085,12 +1120,32 @@ void CPFA_controller::Returning() {
 			if(collision > 50) {
 				if(followingEntryPath1){
 					pointonpath = FindClosestPointIndexOnPath(entryPath1);
+					LoopFunctions->entryPath1UsageCount++;
+					LoopFunctions->pathUsage["entryPath1"] = argos::CVector2(
+						SimulationTick(),
+						LoopFunctions->pathUsage["entryPath1"].GetY() + 1
+					);
 				} else if (followingEntryPath2) {
 					pointonpath = FindClosestPointIndexOnPath(entryPath2);
+					LoopFunctions->entryPath2UsageCount++;
+					LoopFunctions->pathUsage["entryPath2"] = argos::CVector2(
+						SimulationTick(),
+						LoopFunctions->pathUsage["entryPath2"].GetY() + 1
+					);
 				} else if (followingEntryPath3) {
 					pointonpath = FindClosestPointIndexOnPath(entryPath3);
+					LoopFunctions->entryPath3UsageCount++;
+					LoopFunctions->pathUsage["entryPath3"] = argos::CVector2(
+						SimulationTick(),
+						LoopFunctions->pathUsage["entryPath3"].GetY() + 1
+					);
 				} else if (followingEntryPath4) {
 					pointonpath = FindClosestPointIndexOnPath(entryPath4);
+					LoopFunctions->entryPath4UsageCount++;
+					LoopFunctions->pathUsage["entryPath4"] = argos::CVector2(
+						SimulationTick(),
+						LoopFunctions->pathUsage["entryPath4"].GetY() + 1
+					);
 				}
 		// if(stopCounter > 32){
 
