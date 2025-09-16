@@ -89,7 +89,7 @@ void CPFA_qt_user_functions::DrawOnArena(CFloorEntity& entity) {
 	DrawFidelity();
 	DrawPheromones();
 	DrawNest();
-	DrawEntryPoint();
+	// DrawEntryPoint();
 	DrawCircleOnArena();
     DrawConnectingLines();
     DrawParallelExitPaths();

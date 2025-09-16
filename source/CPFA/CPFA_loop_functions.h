@@ -70,6 +70,9 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 		double getRateOfSiteFidelity();
 		double getRateOfLayingPheromone();
 		double getRateOfPheromoneDecay();
+		std::vector<argos::CVector2> entryPoints = {
+
+		};
 
 	protected:
 		void setScore(double s);
