@@ -70,14 +70,15 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 		double getRateOfSiteFidelity();
 		double getRateOfLayingPheromone();
 		double getRateOfPheromoneDecay();
-		std::vector<argos::CVector2> entryPoints = {	
-
+		std::vector<argos::CVector2> entryPoints = {
+			
 		};
 		size_t entryPath1UsageCount;
 		size_t entryPath2UsageCount;
 		size_t entryPath3UsageCount;
 		size_t entryPath4UsageCount;
-
+		void ReassignQueue(size_t dockIdx);
+		std::vector<bool> dockStatus;
 		map<string, argos::CVector2> pathUsage;
 	protected:
 		void setScore(double s);
@@ -152,7 +153,12 @@ class CPFA_loop_functions : public argos::CLoopFunctions
                 vector<size_t>		ForageList;
 		argos::CVector2 NestPosition;
 		std::vector<argos::CVector2> NestPositions;
-		std::vector<size_t> dockLastUsedTime; // Track last-used time for each dock
+		map<string, size_t> dockLastUsedTime; // Track last-used time for each dock
+		std::vector<size_t> dockDropoffs; // Track number of dropoffs for each dock
+		size_t dock1;
+		size_t dock2;
+		size_t dock3;
+		size_t dock4;
 	private:			
 
 

@@ -513,6 +513,25 @@ void CPFA_controller::FollowingEntryPath() {
 
 		mainTarget = GetTarget();
 
+		// determine which dock the robot delivered to based on followingEntryPath
+		if(followingEntryPath1){
+			LoopFunctions->dock1++;
+			LoopFunctions->dockDropoffs[0]++;
+			LoopFunctions->dockLastUsedTime["dock1"] = SimulationTick();
+		} else if(followingEntryPath2){
+			LoopFunctions->dock2++;
+			LoopFunctions->dockDropoffs[1]++;
+			LoopFunctions->dockLastUsedTime["dock2"] = SimulationTick();
+		} else if(followingEntryPath3){
+			LoopFunctions->dock3++;
+			LoopFunctions->dockDropoffs[2]++;
+			LoopFunctions->dockLastUsedTime["dock3"] = SimulationTick();
+		} else if(followingEntryPath4){
+			LoopFunctions->dock4++;
+			LoopFunctions->dockDropoffs[3]++;
+			LoopFunctions->dockLastUsedTime["dock4"] = SimulationTick();
+		}
+
 		/* 
 		This is for choosing the exit path that is closest to next destination.
 		*/		
@@ -1074,6 +1093,25 @@ void CPFA_controller::Returning() {
 			LoopFunctions->currNumCollectedFood++;
 			LoopFunctions->setScore(num_targets_collected);
 		}
+
+		if(followingEntryPath1){
+			LoopFunctions->dock1++;
+			LoopFunctions->dockDropoffs[0]++;
+			LoopFunctions->dockLastUsedTime["dock1"] = SimulationTick();
+		} else if(followingEntryPath2){
+			LoopFunctions->dock2++;
+			LoopFunctions->dockDropoffs[1]++;
+			LoopFunctions->dockLastUsedTime["dock2"] = SimulationTick();
+		} else if(followingEntryPath3){
+			LoopFunctions->dock3++;
+			LoopFunctions->dockDropoffs[2]++;
+			LoopFunctions->dockLastUsedTime["dock3"] = SimulationTick();
+		} else if(followingEntryPath4){
+			LoopFunctions->dock4++;
+			LoopFunctions->dockDropoffs[3]++;
+			LoopFunctions->dockLastUsedTime["dock4"] = SimulationTick();
+		}
+		
 
 		if (followingEntryPath1) {
             SetTarget(exitPath1[0]);

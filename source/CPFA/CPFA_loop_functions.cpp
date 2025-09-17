@@ -102,7 +102,13 @@ void CPFA_loop_functions::Init(argos::TConfigurationNode &node) {
 	}
 
     // Initialize dock last-used times to 0
-    dockLastUsedTime.assign(NestPositions.size(), 0);
+	dockLastUsedTime["dock1"] = 0;
+	dockLastUsedTime["dock2"] = 0;
+	dockLastUsedTime["dock3"] = 0;
+	dockLastUsedTime["dock4"] = 0;
+	// Initialize dockStatus to true (active)
+    dockStatus.assign(NestPositions.size(), true);
+	dockDropoffs.assign(NestPositions.size(), 0);
 
     FoodRadiusSquared = FoodRadius*FoodRadius;
     //Number of distributed foods
@@ -188,7 +194,13 @@ void CPFA_loop_functions::Reset() {
         MoveEntity(footBot.GetEmbodiedEntity(), c2.GetStartPosition(), argos::CQuaternion(), false);
     c2.Reset();
     }
-    dockLastUsedTime.assign(NestPositions.size(), 0);
+	dockLastUsedTime["dock1"] = 0;
+	dockLastUsedTime["dock2"] = 0;
+	dockLastUsedTime["dock3"] = 0;
+	dockLastUsedTime["dock4"] = 0;
+	// Initialize dockStatus to true (active) on reset
+    dockStatus.assign(NestPositions.size(), true);
+	dockDropoffs.assign(NestPositions.size(), 0);
 }
 
 void CPFA_loop_functions::PreStep() {
@@ -221,33 +233,52 @@ void CPFA_loop_functions::PreStep() {
       //robotPosList.push_back(position);
 
       // Check if robot is in any nest and update dock last-used time
-      for (size_t i = 0; i < NestPositions.size(); ++i) {
-          if ((position - NestPositions[i]).SquareLength() < NestRadiusSquared) {
-              dockLastUsedTime[i] = GetSpace().GetSimulationClock();
-          }
-      }
+    //   for (size_t i = 0; i < NestPositions.size(); ++i) {
+    //       if ((position - NestPositions[i]).SquareLength() < NestRadiusSquared) {
+    //           dockLastUsedTime[i] = GetSpace().GetSimulationClock();
+	// 		  dockDropoffs[i]++; // Increment dropoff count for this dock
+    //       }
+    //   }
 
     }
 	// check path usage and print if a path is not used for X seconds
 	size_t ticks_per_second = GetSimulator().GetPhysicsEngine("dyn2d").GetInverseSimulationClockTick();
-	size_t unused_threshold = 60 * ticks_per_second;
+	size_t unused_threshold = 80 * ticks_per_second;  // e.g., 60 seconds or 1920 ticks
 	for(auto& path : pathUsage) {
 		if(GetSpace().GetSimulationClock() - path.second.GetX() > unused_threshold) {
-			argos::LOG << "[INFO] Path " << path.first << " has not been used for " 
-						<< (GetSpace().GetSimulationClock() - path.second.GetX()) / ticks_per_second 
-						<< " seconds." << std::endl;
+			// argos::LOG << "[INFO] Path " << path.first << " has not been used for " 
+			// 			<< (GetSpace().GetSimulationClock() - path.second.GetX()) / ticks_per_second 
+			// 			<< " seconds." << std::endl;
 		}
 	}
 
-    // Check for unused docks and print if not used for X seconds
-     // e.g., 60 seconds or 1920 ticks
-    // for (size_t i = 0; i < dockLastUsedTime.size(); ++i) {
-    //     if (GetSpace().GetSimulationClock() - dockLastUsedTime[i] > unused_threshold) {
-            // argos::LOG << "[INFO] Dock " << i << " has not been used for " 
-            //            << (GetSpace().GetSimulationClock() - dockLastUsedTime[i]) / ticks_per_second
-            //            << " seconds." << std::endl;
-    //     }
-    // }
+	// get max in dockDropoffs
+	size_t max_dropoffs = *std::max_element(dockDropoffs.begin(), dockDropoffs.end());
+
+    // Check for unused docks and change their status to false if not used for X seconds
+	// If a dock is found inactive, reassign its queue to an adjacent active dock
+	// and update the last-used time to prevent repeated reassignment
+	for (size_t i = 0; i < NestPositions.size(); ++i) {
+		std::string dockName = "dock" + std::to_string(i + 1);
+		if (GetSpace().GetSimulationClock() - dockLastUsedTime[dockName] > unused_threshold) {
+			// argos::LOG << "[INFO] Dock " << dockName << " at position (" 
+			// 		   << NestPositions[i].GetX() << ", " << NestPositions[i].GetY() 
+			// 		   << ") has not been used for " 
+			// 		   << (GetSpace().GetSimulationClock() - dockLastUsedTime[dockName]) / ticks_per_second
+			// 		   << " seconds." << std::endl;
+
+			if(max_dropoffs > 10){ // only set to inactive if some docks have significant dropoffs
+				dockStatus[i] = false; // Set dock to inactive
+			}
+		} else {
+			dockStatus[i] = true; // Set dock to active
+		}
+
+		if (!dockStatus[i]) {
+			dockLastUsedTime[dockName] = GetSpace().GetSimulationClock();
+			ReassignQueue(i);
+		}
+	}
 
 	// if a queue hasnt been used for X seconds, print a warning
 	size_t queue_unused_threshold = 120 * ticks_per_second; // e.g., 120 seconds or 3840 ticks
@@ -260,6 +291,36 @@ void CPFA_loop_functions::PreStep() {
     }
 }
 
+void CPFA_loop_functions::ReassignQueue(size_t dockIdx) {
+	size_t num_docks = NestPositions.size();
+	size_t prev = (dockIdx == 0) ? num_docks - 1 : dockIdx - 1;
+	size_t next = (dockIdx + 1) % num_docks;
+
+	// Only consider active adjacent docks
+	bool prev_active = dockStatus[prev];
+	bool next_active = dockStatus[next];
+
+	if (!prev_active && !next_active) {
+		std::string dockName = "dock" + std::to_string(dockIdx + 1);
+		argos::LOG << "[WARN] No adjacent active docks available for reassignment from " << dockName << std::endl;
+		return;
+	}
+
+	size_t chosenIdx;
+	if (prev_active && next_active) {
+		// Pick the one with the greatest dropoff count so we could relieve busy docks
+		chosenIdx = (dockDropoffs[prev] >= dockDropoffs[next]) ? prev : next;
+	} else if (prev_active) {
+		chosenIdx = prev;
+	} else {
+		chosenIdx = next;
+	}
+
+	std::string dockName = "dock" + std::to_string(dockIdx + 1);
+	std::string chosenDockName = "dock" + std::to_string(chosenIdx + 1);
+	argos::LOG << "[INFO] Queue from " << dockName << " reassigned to " << chosenDockName
+	           << " (dropoffs=" << dockDropoffs[chosenIdx] << ")" << std::endl;
+}
 
 void CPFA_loop_functions::PostStep() {
 
