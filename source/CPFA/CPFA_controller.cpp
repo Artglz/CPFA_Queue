@@ -478,12 +478,34 @@ void CPFA_controller::FollowingEntryPath() {
 	}
 
 	if (IsInTheNest()) {
-		//argos::LOG << "Executed " << currentWaypointIndex << " out of " << EntryPath.size() << " Waypoints" << std::endl;
 
-		if(nestStopCounter < 160){
+		if(timeSet && isHoldingFood) {
+			totalTimeInsideRedCircle += (LoopFunctions->getSimTimeInSeconds() - timeInsideRedCircle);
+			timeSet = false;
+		}
+		// Array of flags and dock names for easier iteration
+		bool entryPathFlags[4] = {followingEntryPath1, followingEntryPath2, followingEntryPath3, followingEntryPath4};
+		const char* dockNames[4] = {"dock1", "dock2", "dock3", "dock4"};
+
+		// Set dock busy if following entry path
+		for (int i = 0; i < 4; ++i) {
+			if (entryPathFlags[i]) {
+				LoopFunctions->isDockBusy[dockNames[i]] = true;
+			}
+		}
+
+		// simulating robot unloading resource for 160 timesteps
+		if (nestStopCounter < 160) {
 			Stop();
 			nestStopCounter++;
 			return;
+		}
+
+		// Unset dock busy after stopping
+		for (int i = 0; i < 4; ++i) {
+			if (entryPathFlags[i]) {
+				LoopFunctions->isDockBusy[dockNames[i]] = false;
+			}
 		}
 
 		if (isHoldingFood) {
@@ -573,6 +595,20 @@ void CPFA_controller::FollowingEntryPath() {
 		nestStopCounter = 0;
 		actualPath.clear();
 		return;
+	}
+
+	// if a robot is at actualPath[actualPath.size()-2] and alternative dock is not busy, go to alternative dock
+	if (currentWaypointIndex == actualPath.size() - 2) {
+		// Check if there is an alternative dock from LoopFunctions->mainToAlternativeDock[current_dockName]
+		auto it = LoopFunctions->mainToAlternativeDock.find(current_dockName);
+		if (it != LoopFunctions->mainToAlternativeDock.end()) {
+			if(!LoopFunctions->isDockBusy[it->second]) {
+				argos::LOG << "Robot: " << GetId() << " is going to alternative dock: " << it->second << " at timestep: " << SimulationTick() << std::endl;
+				SetTarget(LoopFunctions->DockPositions[it->second]);
+			}
+
+			// return;
+		}
 	}
 
 	if (IsAtTarget()) {
@@ -735,22 +771,22 @@ void CPFA_controller::Searching() {
 			 entrypoint = FindClosestNest();
 			//  argos::LOG << "Robot: " << GetId() << " is giving up searching and going to entry point: "
 			// 	<< entrypoint.GetX() << ", " << entrypoint.GetY() << std::endl;
-			 if (entrypoint == LoopFunctions->NestPositions[1]) {
+			 if (entrypoint == LoopFunctions->NestPositions[0]) {
 				actualPath = entryPath1;
 				// SetTarget(entryPath1[1]);
 				followingEntryPath1 = true;
 				//SetTarget(LoopFunctions->NestPositions[1]);
-			} else if (entrypoint == LoopFunctions->NestPositions[3]) {
+			} else if (entrypoint == LoopFunctions->NestPositions[1]) {
 				// SetTarget(entryPath2[1]);
 				actualPath = entryPath2;
 				followingEntryPath2 = true;
 				// SetTarget(LoopFunctions->NestPositions[3]);
-			} else if (entrypoint == LoopFunctions->NestPositions[0]) {
+			} else if (entrypoint == LoopFunctions->NestPositions[2]) {
 				// SetTarget(entryPath3[1]);
 				actualPath = entryPath3;
 				followingEntryPath3 = true;
 				//SetTarget(LoopFunctions->NestPositions[0]);
-			} else if (entrypoint == LoopFunctions->NestPositions[2]) {
+			} else if (entrypoint == LoopFunctions->NestPositions[3]) {
 				// SetTarget(entryPath4[1]);
 				actualPath = entryPath4;
 				followingEntryPath4 = true;
@@ -896,25 +932,25 @@ void CPFA_controller::Surveying() {
 		entrypoint = FindClosestNest();
 		// argos::LOG << "Robot: " << GetId() << " is finished surveying and going to entry point: "
 		// 	<< entrypoint.GetX() << ", " << entrypoint.GetY() << std::endl;
-		if (entrypoint == LoopFunctions->NestPositions[1]) {
+		if (entrypoint == LoopFunctions->NestPositions[0]) {
 			// argos::LOG << "Robot: " << GetId() << " set following entry path 1." << std::endl;
 			actualPath = entryPath1;
 			// SetTarget(entryPath1[1]);
 			followingEntryPath1 = true;
 			//SetTarget(LoopFunctions->NestPositions[1]);
-		} else if (entrypoint == LoopFunctions->NestPositions[3]) {
+		} else if (entrypoint == LoopFunctions->NestPositions[1]) {
 			// argos::LOG << "Robot: " << GetId() << " set following entry path 2." << std::endl;
 			// SetTarget(entryPath2[1]);
 			actualPath = entryPath2;
 			followingEntryPath2 = true;
 			// SetTarget(LoopFunctions->NestPositions[3]);
-		} else if (entrypoint == LoopFunctions->NestPositions[0]) {
+		} else if (entrypoint == LoopFunctions->NestPositions[2]) {
 			// argos::LOG << "Robot: " << GetId() << " set following entry path 3." << std::endl;
 			// SetTarget(entryPath3[1]);
 			actualPath = entryPath3;
 			followingEntryPath3 = true;
 			//SetTarget(LoopFunctions->NestPositions[0]);
-		} else if (entrypoint == LoopFunctions->NestPositions[2]) {
+		} else if (entrypoint == LoopFunctions->NestPositions[3]) {
 			// argos::LOG << "Robot: " << GetId() << " set following entry path 4." << std::endl;
 			// SetTarget(entryPath4[1]);
 			actualPath = entryPath4;
@@ -939,11 +975,36 @@ Real CPFA_controller::GetTotalTimeInsideRedCircle() {
 
 void CPFA_controller::Returning() {
 
-	// if (SimulationTick() % 100 == 0) {
-	// 	// argos::LOG << GetId() << " is stopping." << std::endl;
-	// 	Stop();
-	// }
+	// if robot is not holding food, do not enter
+	if(!isHoldingFood && inCentralZone()){
+		// argos::LOG << GetId() << " reached the radius and is now doing random search..." << std::endl;
+		CPFA_state = SEARCHING; 
+		isGivingUpSearch = false;
+		isInformed = false;
+		isUsingSiteFidelity = false;
+		Stop();
+		SearchTime = 0;
+		CPFA_state = SEARCHING;
+		travelingTime+=SimulationTick()-startTime;//qilu 10/22
+		startTime = SimulationTick();//qilu 10/22
+   
+		argos::Real USV = LoopFunctions->UninformedSearchVariation.GetValue();
+		argos::Real rand = RNG->Gaussian(USV);
+		argos::CRadians rotation(rand);
+		argos::CRadians angle1(rotation.UnsignedNormalize());
+		argos::CRadians angle2(GetHeading().UnsignedNormalize());
+		argos::CRadians turn_angle(angle1 + angle2);
+		argos::CVector2 turn_vector(SearchStepSize, turn_angle);
+		SetIsHeadingToNest(false);
+		SetTarget(turn_vector + GetPosition());
+		return;
+	}
 
+	if(!timeSet && inCentralZone()) {
+		timeInsideRedCircle = LoopFunctions->getSimTimeInSeconds();
+		timeSet = true;
+	}
+	
 	/* -----Logic for robots to not block exit path------ */
 	
 	if(runningfromcorridor){
@@ -955,17 +1016,33 @@ void CPFA_controller::Returning() {
 			SetTarget(entrypoint);
 		}
 		if (IsInTheNest()) {
-			if(nestStopCounter == 0){
-				firstTimeInNest = true;
-			}else{
-				firstTimeInNest = false;
+
+			if(timeSet && isHoldingFood) {
+				totalTimeInsideRedCircle += (LoopFunctions->getSimTimeInSeconds() - timeInsideRedCircle);
+				timeSet = false;
+			}			
+			// Array of flags and dock names for easier iteration
+			bool entryPathFlags[4] = {followingEntryPath1, followingEntryPath2, followingEntryPath3, followingEntryPath4};
+			const char* dockNames[4] = {"dock1", "dock2", "dock3", "dock4"};
+
+			// Set dock busy if following entry path
+			for (int i = 0; i < 4; ++i) {
+				if (entryPathFlags[i]) {
+					LoopFunctions->isDockBusy[dockNames[i]] = true;
+				}
 			}
-	
-			//stop for 160 timesteps
-			if(nestStopCounter < 160){
+
+			if (nestStopCounter < 160) {
 				Stop();
 				nestStopCounter++;
 				return;
+			}
+
+			// Unset dock busy after stopping
+			for (int i = 0; i < 4; ++i) {
+				if (entryPathFlags[i]) {
+					LoopFunctions->isDockBusy[dockNames[i]] = false;
+				}
 			}
 	
 			if (isHoldingFood) {
@@ -1036,56 +1113,38 @@ void CPFA_controller::Returning() {
 		return;
 	}
 
-	// if robot is not holding food, do not enter
-	if(!isHoldingFood && inCentralZone()){
-		// argos::LOG << GetId() << " reached the radius and is now doing random search..." << std::endl;
-		CPFA_state = SEARCHING; 
-		isGivingUpSearch = false;
-		isInformed = false;
-		isUsingSiteFidelity = false;
-		Stop();
-		SearchTime = 0;
-		CPFA_state = SEARCHING;
-		travelingTime+=SimulationTick()-startTime;//qilu 10/22
-		startTime = SimulationTick();//qilu 10/22
-   
-		argos::Real USV = LoopFunctions->UninformedSearchVariation.GetValue();
-		argos::Real rand = RNG->Gaussian(USV);
-		argos::CRadians rotation(rand);
-		argos::CRadians angle1(rotation.UnsignedNormalize());
-		argos::CRadians angle2(GetHeading().UnsignedNormalize());
-		argos::CRadians turn_angle(angle1 + angle2);
-		argos::CVector2 turn_vector(SearchStepSize, turn_angle);
-		SetIsHeadingToNest(false);
-		SetTarget(turn_vector + GetPosition());
-		return;
-	}
-
-	if(!timeSet && inCentralZone()) {
-		timeInsideRedCircle = LoopFunctions->getSimTimeInSeconds();
-		timeSet = true;
-	}
-
 	
 
 	/* This is in case the robot actually reaches the nest directly (No Path) */
 	if (IsInTheNest()) {
-		if(nestStopCounter == 0){
-			firstTimeInNest = true;
-		}else{
-			firstTimeInNest = false;
-		}
 
 		if(timeSet && isHoldingFood) {
 			totalTimeInsideRedCircle += (LoopFunctions->getSimTimeInSeconds() - timeInsideRedCircle);
 			timeSet = false;
 		}
 
-		//stop for 160 timesteps
-		if(nestStopCounter < 160){
+		// Array of flags and dock names for easier iteration
+		bool entryPathFlags[4] = {followingEntryPath1, followingEntryPath2, followingEntryPath3, followingEntryPath4};
+		const char* dockNames[4] = {"dock1", "dock2", "dock3", "dock4"};
+
+		// Set dock busy if following entry path
+		for (int i = 0; i < 4; ++i) {
+			if (entryPathFlags[i]) {
+				LoopFunctions->isDockBusy[dockNames[i]] = true;
+			}
+		}
+
+		if (nestStopCounter < 160) {
 			Stop();
 			nestStopCounter++;
 			return;
+		}
+
+		// Unset dock busy after stopping
+		for (int i = 0; i < 4; ++i) {
+			if (entryPathFlags[i]) {
+				LoopFunctions->isDockBusy[dockNames[i]] = false;
+			}
 		}
 
 		if (isHoldingFood) {
@@ -1163,6 +1222,7 @@ void CPFA_controller::Returning() {
 						SimulationTick(),
 						LoopFunctions->pathUsage["entryPath1"].GetY() + 1
 					);
+					current_dockName = "dock1";
 				} else if (followingEntryPath2) {
 					pointonpath = FindClosestPointIndexOnPath(entryPath2);
 					LoopFunctions->entryPath2UsageCount++;
@@ -1170,6 +1230,7 @@ void CPFA_controller::Returning() {
 						SimulationTick(),
 						LoopFunctions->pathUsage["entryPath2"].GetY() + 1
 					);
+					current_dockName = "dock2";
 				} else if (followingEntryPath3) {
 					pointonpath = FindClosestPointIndexOnPath(entryPath3);
 					LoopFunctions->entryPath3UsageCount++;
@@ -1177,6 +1238,7 @@ void CPFA_controller::Returning() {
 						SimulationTick(),
 						LoopFunctions->pathUsage["entryPath3"].GetY() + 1
 					);
+					current_dockName = "dock3";
 				} else if (followingEntryPath4) {
 					pointonpath = FindClosestPointIndexOnPath(entryPath4);
 					LoopFunctions->entryPath4UsageCount++;
@@ -1184,6 +1246,7 @@ void CPFA_controller::Returning() {
 						SimulationTick(),
 						LoopFunctions->pathUsage["entryPath4"].GetY() + 1
 					);
+					current_dockName = "dock4";
 				}
 		// if(stopCounter > 32){
 

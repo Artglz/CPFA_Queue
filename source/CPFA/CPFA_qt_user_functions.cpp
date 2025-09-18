@@ -204,20 +204,17 @@ void CPFA_qt_user_functions::DrawConnectingLines() {
     if (!entryPath1.empty() && !exitPath1.empty()) {
         drawLine(entryPath1.back(), {0.205, 0.135});
     }
-
-    // Draw line from last entryPoint2 to first exitPath2
-    if (!entryPath2.empty() && !exitPath2.empty()) {
-        drawLine(entryPath2.back(), {-0.205, -0.135});
-    }
-
-    // Draw line from last entryPoint3 to first exitPath3
-    if (!entryPath3.empty() && !exitPath3.empty()) {
-        drawLine(entryPath3.back(), {-0.135, 0.205});
-    }
-
     // Draw line from last entryPoint4 to first exitPath4
+    if (!entryPath2.empty() && !exitPath2.empty()) {
+        drawLine(entryPath2.back(), { 0.135, -0.205});
+    }
+    // Draw line from last entryPoint2 to first exitPath2
+    if (!entryPath3.empty() && !exitPath3.empty()) {
+        drawLine(entryPath3.back(), {-0.205, -0.135});
+    }
+    // Draw line from last entryPoint3 to first exitPath3
     if (!entryPath4.empty() && !exitPath4.empty()) {
-        drawLine(entryPath4.back(), { 0.135, -0.205});
+        drawLine(entryPath4.back(), {-0.135, 0.205});
     }
 }
 

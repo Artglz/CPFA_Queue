@@ -243,7 +243,7 @@ void CPFA_loop_functions::PreStep() {
     }
 	// check path usage and print if a path is not used for X seconds
 	size_t ticks_per_second = GetSimulator().GetPhysicsEngine("dyn2d").GetInverseSimulationClockTick();
-	size_t unused_threshold = 80 * ticks_per_second;  // e.g., 60 seconds or 1920 ticks
+	size_t unused_threshold = 40 * ticks_per_second;  // e.g., 60 seconds or 1920 ticks
 	for(auto& path : pathUsage) {
 		if(GetSpace().GetSimulationClock() - path.second.GetX() > unused_threshold) {
 			// argos::LOG << "[INFO] Path " << path.first << " has not been used for " 
@@ -320,6 +320,9 @@ void CPFA_loop_functions::ReassignQueue(size_t dockIdx) {
 	std::string chosenDockName = "dock" + std::to_string(chosenIdx + 1);
 	argos::LOG << "[INFO] Queue from " << dockName << " reassigned to " << chosenDockName
 	           << " (dropoffs=" << dockDropoffs[chosenIdx] << ")" << std::endl;
+
+	//map the main dock to its alternative
+	mainToAlternativeDock[dockName] = chosenDockName;
 }
 
 void CPFA_loop_functions::PostStep() {

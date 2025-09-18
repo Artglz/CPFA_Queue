@@ -80,6 +80,19 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 		void ReassignQueue(size_t dockIdx);
 		std::vector<bool> dockStatus;
 		map<string, argos::CVector2> pathUsage;
+		map<string, bool> isDockBusy = {
+			{"dock1", false},
+			{"dock2", false},
+			{"dock3", false},
+			{"dock4", false}
+		};
+		map<string, string> mainToAlternativeDock;
+		map<string, argos::CVector2> DockPositions = {
+			{"dock1", argos::CVector2(0.3, 0)},
+			{"dock2", argos::CVector2(0, -0.3)},
+			{"dock3", argos::CVector2(-0.3, 0)},
+			{"dock4", argos::CVector2(0, 0.3)}
+		};
 	protected:
 		void setScore(double s);
 

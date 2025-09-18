@@ -86,7 +86,7 @@ class CPFA_controller : public BaseController {
 			{ 0.30,  0.0 }
 		};
 
-		std::vector<argos::CVector2> entryPath2 = {
+		std::vector<argos::CVector2> entryPath3 = {
 			{ -1.60, -1.10 }, { -1.60, -0.825 }, { -1.60, -0.55 }, { -1.60, -0.275 },
 			{ -1.60,  0.00 }, { -1.60,  0.275 }, { -1.60,  0.55 }, { -1.60,  0.825 },
 			{ -1.60,  1.10 }, { -1.51,  1.10 }, { -1.42,  1.10 }, { -1.42,  0.9625 },
@@ -107,7 +107,7 @@ class CPFA_controller : public BaseController {
 			{ -0.54,  0.0 },
 			{ -0.45,  0.0 }, { -0.36,  0.0 }, { -0.33,  0.0 }, { -0.30,  0.0 }
 		};
-		std::vector<argos::CVector2> entryPath3 = {
+		std::vector<argos::CVector2> entryPath4 = {
 			{ -1.10,  1.60 }, { -0.825, 1.60 }, { -0.55, 1.60 }, { -0.275, 1.60 },
 			{  0.00,  1.60 }, {  0.275, 1.60 }, {  0.55, 1.60 }, {  0.825, 1.60 },
 			{  1.10,  1.60 }, {  1.10,  1.51 }, {  1.10,  1.42 }, {  0.8125, 1.42 },
@@ -127,7 +127,7 @@ class CPFA_controller : public BaseController {
 			{  0.0, 0.45 }, {  0.0, 0.36 }, {  0.0, 0.33 }, {  0.0, 0.30 }
 		};
 				
-		std::vector<argos::CVector2> entryPath4 = {
+		std::vector<argos::CVector2> entryPath2 = {
 			{  1.10, -1.60 }, {  0.825, -1.60 }, {  0.55, -1.60 }, {  0.275, -1.60 },
 			{  0.00, -1.60 }, { -0.275, -1.60 }, { -0.55, -1.60 }, { -0.825, -1.60 },
 			{ -1.10, -1.60 }, { -1.10, -1.51 }, { -1.10, -1.42 }, { -0.84375, -1.42 },
@@ -146,6 +146,7 @@ class CPFA_controller : public BaseController {
 			{  0.0,   -0.36 }, 
 			{  0.0,   -0.30 }
 		};
+		string current_dockName;
 								
 		std::vector<argos::CVector2> entryPoints = {
 			entryPath1.front(),
@@ -162,15 +163,15 @@ class CPFA_controller : public BaseController {
 		size_t timeCollided;
 
 		std::vector<argos::CVector2> exitPath1 = {{0.2, 0.2}, {1.6, 1.6}};
-		std::vector<argos::CVector2> exitPath2 = {{-0.2, -0.2}, {-1.6, -1.6}};
-		std::vector<argos::CVector2> exitPath3 = {{-0.2, 0.2}, {-1.6, 1.6}};
-		std::vector<argos::CVector2> exitPath4 = {{0.2, -0.2}, {1.6, -1.6}};
+		std::vector<argos::CVector2> exitPath3 = {{-0.2, -0.2}, {-1.6, -1.6}};
+		std::vector<argos::CVector2> exitPath4 = {{-0.2, 0.2}, {-1.6, 1.6}};
+		std::vector<argos::CVector2> exitPath2 = {{0.2, -0.2}, {1.6, -1.6}};
 		std::vector<argos::CVector2> exitPoints = {{1.6, 1.6}, {-1.6, -1.6}, {-1.6, 1.6}, {1.6, -1.6}};
 
 		std::vector<argos::CVector2> exitPath1Straight = {{0,0}, {1.6, 0.0}};
-		std::vector<argos::CVector2> exitPath2Straight = {{0,0}, {-1.6, 0.0}};
-		std::vector<argos::CVector2> exitPath3Straight = {{0,0}, {0.0, 1.6}};
-		std::vector<argos::CVector2> exitPath4Straight = {{0,0}, {0.0, -1.6}};
+		std::vector<argos::CVector2> exitPath3Straight = {{0,0}, {-1.6, 0.0}};
+		std::vector<argos::CVector2> exitPath4Straight = {{0,0}, {0.0, 1.6}};
+		std::vector<argos::CVector2> exitPath2Straight = {{0,0}, {0.0, -1.6}};
 
 		std::vector<argos::CVector2> actualExitPath;
 		bool followingEntryPath1 = false;
