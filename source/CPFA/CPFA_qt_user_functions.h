@@ -22,6 +22,8 @@ class CPFA_qt_user_functions : public argos::CQTOpenGLUserFunctions {
 		/* interface functions between QT and ARGoS */
 		void DrawOnRobot(argos::CFootBotEntity& entity);
 		void DrawOnArena(argos::CFloorEntity& entity);
+		void DrawCircleSections(size_t num_sections);
+
 
 	private:
 
@@ -37,6 +39,8 @@ class CPFA_qt_user_functions : public argos::CQTOpenGLUserFunctions {
 		void DrawExitPath2();
 		void DrawParallelExitPaths();
 		void DrawConnectingLines();
+		void GenerateCircleCoordinates();
+		void DrawCircleFromCoordinates();
 		CPFA_loop_functions& loopFunctions;
 
 		// std::vector<argos::CVector2> entryPath1 = {	

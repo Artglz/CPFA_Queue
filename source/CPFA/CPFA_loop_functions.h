@@ -18,13 +18,28 @@ using namespace std;
 static const size_t GENOME_SIZE = 7; // There are 7 parameters to evolve
 
 
+class CPFA_qt_user_functions; // Forward declaration
+
 class CPFA_loop_functions : public argos::CLoopFunctions
+
 {
 
 	friend class CPFA_controller;
 	friend class CPFA_qt_user_functions;
 
 	public:
+		// Get points along a specific division (arc) of a circle
+		void GetCircleDivisionPoints(size_t num_divisions, size_t num_points = 20);
+		// Dynamic paths around a circle
+		std::vector<std::vector<std::vector<CVector2>>> dynamicPaths;
+		std::vector<Real> circleRadii = {2.0, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5};
+		void GenerateDynamicPaths(Real radius, size_t num_points = 20);
+		// For triggering circle section drawing
+		bool draw_circle_sections = false;
+		size_t circle_sections_count = 0;
+		// Pointer to qt user functions for drawing
+		
+		void SetQtUserFunctions(CPFA_qt_user_functions* ptr) { qt_user_functions_ptr = ptr; }
 		CPFA_loop_functions();
 		void Init(argos::TConfigurationNode &t_tree);
 		void Reset();
@@ -93,6 +108,12 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 			{"dock3", argos::CVector2(-0.3, 0)},
 			{"dock4", argos::CVector2(0, 0.3)}
 		};
+
+
+		std::vector<argos::CVector3> CircleCoordinates;
+		argos::CVector2 RedCirclePosition;
+
+		size_t resourceClustersFound = 0;
 	protected:
 		void setScore(double s);
 
@@ -113,6 +134,7 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 		size_t FoodItemCount;
 		size_t PowerlawFoodUnitCount;
 		size_t NumberOfClusters;
+		std::vector<argos::CVector2> clusterCenters;
 		size_t ClusterWidthX;
 		size_t ClusterWidthY;
 		size_t PowerRank;
@@ -172,8 +194,13 @@ class CPFA_loop_functions : public argos::CLoopFunctions
 		size_t dock2;
 		size_t dock3;
 		size_t dock4;
+		// Track which clusters have been found
+		std::vector<bool> clustersFound;
+		// Check if a cluster is found by a robot
+		void CheckClusterFound(const argos::CVector2& pos);
+		std::vector<int> clusterResourceCount;
 	private:			
-
+		CPFA_qt_user_functions* qt_user_functions_ptr;
 
 		/* private helper functions */
 		void RandomFoodDistribution();

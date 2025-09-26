@@ -1,13 +1,15 @@
+
 #include "CPFA_loop_functions.h"
+#include "CPFA_qt_user_functions.h"
 
 CPFA_loop_functions::CPFA_loop_functions() :
 	RNG(argos::CRandom::CreateRNG("argos")),
-        SimTime(0),
-	//MaxSimTime(3600 * GetSimulator().GetPhysicsEngine("dyn2d").GetInverseSimulationClockTick()),
-    MaxSimTime(0),//qilu 02/05/2021
-        CollisionTime(0), 
-        lastNumCollectedFood(0),
-        currNumCollectedFood(0),
+	SimTime(0),
+	qt_user_functions_ptr(NULL),
+	MaxSimTime(0),//qilu 02/05/2021
+	CollisionTime(0), 
+	lastNumCollectedFood(0),
+	currNumCollectedFood(0),
 	ResourceDensityDelay(0),
 	RandomSeed(GetSimulator().GetRandomSeed()),
 	SimCounter(0),
@@ -37,12 +39,13 @@ CPFA_loop_functions::CPFA_loop_functions() :
 	NestRadius(0.12),
 	NestRadiusSquared(0.0625),
 	NestElevation(0.01),
-	// We are looking at a 4 by 4 square (3 targets + 2*1/2 target gaps)
 	SearchRadiusSquared((4.0 * FoodRadius) * (4.0 * FoodRadius)),
 	CameraRadiusSquared(2.25),
 	NumDistributedFood(0),
 	score(0),
-	PrintFinalScore(0)
+	PrintFinalScore(0),
+	TotalRedCircleTime(0.0),
+	RedCirclePosition(0.0, 0.0)
 {}
 
 void CPFA_loop_functions::Init(argos::TConfigurationNode &node) {	
@@ -97,9 +100,9 @@ void CPFA_loop_functions::Init(argos::TConfigurationNode &node) {
 		// argos::LOG << "Nest Position: " << x << ", " << y << std::endl;
 	}
 	//print content of nest_positions
-	for (const auto& pos : NestPositions) {
-		argos::LOG << "Nest Position: " << pos.GetX() << ", " << pos.GetY() << std::endl;
-	}
+	// for (const auto& pos : NestPositions) {
+	// 	argos::LOG << "Nest Position: " << pos.GetX() << ", " << pos.GetY() << std::endl;
+	// }
 
     // Initialize dock last-used times to 0
 	dockLastUsedTime["dock1"] = 0;
@@ -155,11 +158,10 @@ void CPFA_loop_functions::Init(argos::TConfigurationNode &node) {
    NestRadiusSquared = NestRadius*NestRadius;
 	
     SetFoodDistribution();
-  
+	
 	ForageList.clear(); 
 	last_time_in_minutes=0;
 	// SetupPythonEnvironment();
- 
 }
 
 
@@ -291,6 +293,100 @@ void CPFA_loop_functions::PreStep() {
     }
 }
 
+void CPFA_loop_functions::CheckClusterFound(const argos::CVector2& pos) {
+	if (clusterCenters.empty()) return;
+
+	// Find the closest cluster center to the robot position
+	size_t closestIdx = 0;
+	argos::Real minDist = (pos - clusterCenters[0]).Length();
+
+	for (size_t i = 1; i < clusterCenters.size(); ++i) {
+		argos::Real dist = (pos - clusterCenters[i]).Length();
+		if (dist < minDist) {
+			minDist = dist;
+			closestIdx = i;
+		}
+	}
+
+	// Mark cluster as found if not already
+	if (!clustersFound[closestIdx]) {
+		clustersFound[closestIdx] = true;
+		resourceClustersFound++;
+		argos::LOG << "[INFO] Cluster " << (closestIdx + 1) << " discovered at position ("
+				   << clusterCenters[closestIdx].GetX() << ", " << clusterCenters[closestIdx].GetY()
+				   << "). Total clusters found: " << resourceClustersFound << "/" << NumberOfClusters
+				   << std::endl;
+
+		
+		// Set flag to trigger drawing in DrawOnArena
+		draw_circle_sections = true;
+		circle_sections_count = resourceClustersFound;
+
+		// GenerateDynamicPaths(2.0); // Generate 8 dynamic paths around a circle of radius 2.0 with 20 points each
+		GetCircleDivisionPoints(resourceClustersFound); // Get points for the new division
+	}
+
+	// Decrement resource count for the closest cluster
+	clusterResourceCount[closestIdx]--;
+	if (clusterResourceCount[closestIdx] == 0) {
+		resourceClustersFound--;
+		circle_sections_count = resourceClustersFound;
+		argos::LOG << "[INFO] All resources collected for cluster " << (closestIdx + 1)
+				   << " at position (" << clusterCenters[closestIdx].GetX() << ", " << clusterCenters[closestIdx].GetY() << ")"
+				   << std::endl;
+	}
+}
+
+// Generate N dynamic paths around a circle
+void CPFA_loop_functions::GenerateDynamicPaths(Real radius, size_t num_points) {
+	size_t N = resourceClustersFound;
+	dynamicPaths.clear();
+	for(size_t i = 0; i < N; ++i) {
+		Real angle = (2.0 * ARGOS_PI * i) / N;
+		std::vector<CVector2> path;
+		for(size_t j = 0; j < num_points; ++j) {
+			Real t = static_cast<Real>(j) / (num_points - 1); // 0 to 1
+			Real r = radius * t;
+			Real x = r * std::cos(angle);
+			Real y = r * std::sin(angle);
+			path.push_back(CVector2(x, y));
+		}
+		//print the coordinates of the path
+		for (const auto& point : path) {
+			argos::LOG << "[INFO] Dynamic path " << i << " point: (" << point.GetX() << ", " << point.GetY() << ")" << std::endl;
+		}
+		// Wrap path in a vector to match dynamicPaths type
+		dynamicPaths.push_back({path});
+	}
+}
+
+// Returns points along a specific division (arc) of a circle
+void CPFA_loop_functions::GetCircleDivisionPoints(size_t num_divisions, size_t num_points) {
+	dynamicPaths.clear();
+	// Use global member variable circleRadii
+	for (size_t r_idx = 0; r_idx < circleRadii.size(); ++r_idx) {
+		Real radius = circleRadii[r_idx];
+		std::vector<std::vector<CVector2>> circle_paths;
+		for (size_t section_idx = 0; section_idx < num_divisions; ++section_idx) {
+			std::vector<CVector2> points;
+			Real start_angle = (2.0 * ARGOS_PI * section_idx) / num_divisions;
+			Real end_angle = (2.0 * ARGOS_PI * (section_idx + 1)) / num_divisions;
+			for(size_t i = 0; i < num_points; ++i) {
+				Real theta = start_angle + (end_angle - start_angle) * (static_cast<Real>(i) / (num_points - 1));
+				Real x = radius * std::cos(theta);
+				Real y = radius * std::sin(theta);
+				points.push_back(CVector2(x, y));
+			}
+			// Print the points for debugging
+			for (const auto& point : points) {
+				argos::LOG << "[INFO] Circle " << r_idx << " section " << section_idx << " point: (" << point.GetX() << ", " << point.GetY() << ")" << std::endl;
+			}
+			circle_paths.push_back(points);
+		}
+		dynamicPaths.push_back(circle_paths);
+	}
+}
+
 void CPFA_loop_functions::ReassignQueue(size_t dockIdx) {
 	size_t num_docks = NestPositions.size();
 	size_t prev = (dockIdx == 0) ? num_docks - 1 : dockIdx - 1;
@@ -332,13 +428,19 @@ void CPFA_loop_functions::PostStep() {
 bool CPFA_loop_functions::IsExperimentFinished() {
 	bool isFinished = false;
 
-	if(FoodList.size() == 0 || GetSpace().GetSimulationClock() >= MaxSimTime) {
+	// if(FoodList.size() == 0) {
+	// 	argos::LOG<< "no more food..."<<endl;
+	// 	isFinished = true;
+	// }
+	if(GetSpace().GetSimulationClock() >= MaxSimTime) {
 		isFinished = true;
+		argos::LOG<< "reached max time..."<<endl;
 	}
     //set to collected 88% food and then stop
     if(score >= NumDistributedFood){
+		argos::LOG<< "collected enough food..."<<endl;
 		isFinished = true;
-		}
+	}
          
          
     
@@ -445,7 +547,12 @@ void CPFA_loop_functions::PostExperiment() {
       
       }  
 
-
+	  //print out clusterResourceCount of each cluster
+	  argos::LOG << "Remaining resources in each cluster: ";
+	  for (size_t i = 0; i < clusterResourceCount.size(); ++i) {
+		  argos::LOG << "Cluster " << (i + 1) << ": " << clusterResourceCount[i] << " ";
+	  }
+	  argos::LOG << std::endl;
 }
 
 
@@ -516,17 +623,22 @@ void CPFA_loop_functions::ClusterFoodDistribution() {
     argos::CVector2 placementPosition;
 
     FoodItemCount = foodToPlace;
+	clusterCenters.clear();
+	clusterResourceCount.clear();
 
     for (size_t i = 0; i < NumberOfClusters; i++) {
         do {
             placementPosition.Set(RNG->Uniform(ForageRangeX), RNG->Uniform(ForageRangeY));
         } while (IsOutOfBounds(placementPosition, ClusterWidthY, ClusterWidthX) ||
                  placementPosition.Length() < 4.5);
+		clusterCenters.push_back(placementPosition);
+		clustersFound.assign(clusterCenters.size(), false);
+		size_t clusterFoodCount = 0;
 
         for (size_t j = 0; j < ClusterWidthY; j++) {
             for (size_t k = 0; k < ClusterWidthX; k++) {
                 foodPlaced++;
-
+				clusterFoodCount++;
                 // Add the food item to the list
                 FoodList.push_back(placementPosition);
                 FoodColoringList.push_back(argos::CColor::BLACK);
@@ -535,10 +647,13 @@ void CPFA_loop_functions::ClusterFoodDistribution() {
                 placementPosition.SetX(placementPosition.GetX() + foodOffset);
             }
 
+
             // Move to the next row
             placementPosition.SetX(placementPosition.GetX() - (ClusterWidthX * foodOffset));
             placementPosition.SetY(placementPosition.GetY() + foodOffset);
         }
+		// printf("Cluster %d has %d food items\n", i+1, clusterFoodCount);
+		clusterResourceCount.push_back(clusterFoodCount);
     }
 }
 

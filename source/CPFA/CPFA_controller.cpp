@@ -535,25 +535,6 @@ void CPFA_controller::FollowingEntryPath() {
 
 		mainTarget = GetTarget();
 
-		// determine which dock the robot delivered to based on followingEntryPath
-		if(followingEntryPath1){
-			LoopFunctions->dock1++;
-			LoopFunctions->dockDropoffs[0]++;
-			LoopFunctions->dockLastUsedTime["dock1"] = SimulationTick();
-		} else if(followingEntryPath2){
-			LoopFunctions->dock2++;
-			LoopFunctions->dockDropoffs[1]++;
-			LoopFunctions->dockLastUsedTime["dock2"] = SimulationTick();
-		} else if(followingEntryPath3){
-			LoopFunctions->dock3++;
-			LoopFunctions->dockDropoffs[2]++;
-			LoopFunctions->dockLastUsedTime["dock3"] = SimulationTick();
-		} else if(followingEntryPath4){
-			LoopFunctions->dock4++;
-			LoopFunctions->dockDropoffs[3]++;
-			LoopFunctions->dockLastUsedTime["dock4"] = SimulationTick();
-		}
-
 		/* 
 		This is for choosing the exit path that is closest to next destination.
 		*/		
@@ -595,20 +576,6 @@ void CPFA_controller::FollowingEntryPath() {
 		nestStopCounter = 0;
 		actualPath.clear();
 		return;
-	}
-
-	// if a robot is at actualPath[actualPath.size()-2] and alternative dock is not busy, go to alternative dock
-	if (currentWaypointIndex == actualPath.size() - 2) {
-		// Check if there is an alternative dock from LoopFunctions->mainToAlternativeDock[current_dockName]
-		auto it = LoopFunctions->mainToAlternativeDock.find(current_dockName);
-		if (it != LoopFunctions->mainToAlternativeDock.end()) {
-			if(!LoopFunctions->isDockBusy[it->second]) {
-				argos::LOG << "Robot: " << GetId() << " is going to alternative dock: " << it->second << " at timestep: " << SimulationTick() << std::endl;
-				SetTarget(LoopFunctions->DockPositions[it->second]);
-			}
-
-			// return;
-		}
 	}
 
 	if (IsAtTarget()) {
@@ -1151,26 +1118,7 @@ void CPFA_controller::Returning() {
 			num_targets_collected++;
 			LoopFunctions->currNumCollectedFood++;
 			LoopFunctions->setScore(num_targets_collected);
-		}
-
-		if(followingEntryPath1){
-			LoopFunctions->dock1++;
-			LoopFunctions->dockDropoffs[0]++;
-			LoopFunctions->dockLastUsedTime["dock1"] = SimulationTick();
-		} else if(followingEntryPath2){
-			LoopFunctions->dock2++;
-			LoopFunctions->dockDropoffs[1]++;
-			LoopFunctions->dockLastUsedTime["dock2"] = SimulationTick();
-		} else if(followingEntryPath3){
-			LoopFunctions->dock3++;
-			LoopFunctions->dockDropoffs[2]++;
-			LoopFunctions->dockLastUsedTime["dock3"] = SimulationTick();
-		} else if(followingEntryPath4){
-			LoopFunctions->dock4++;
-			LoopFunctions->dockDropoffs[3]++;
-			LoopFunctions->dockLastUsedTime["dock4"] = SimulationTick();
-		}
-		
+		}	
 
 		if (followingEntryPath1) {
             SetTarget(exitPath1[0]);
@@ -1472,9 +1420,11 @@ void CPFA_controller::SetRandomSearchLocation() {
       if(IsHoldingFood()) {
          //SetIsHeadingToNest(true);
          //SetTarget(LoopFunctions->NestPosition);
-         LoopFunctions->FoodList = newFoodList;
-         LoopFunctions->FoodColoringList = newFoodColoringList; //qilu 09/12/2016
-         SetLocalResourceDensity();
+		 LoopFunctions->FoodList = newFoodList;
+		 LoopFunctions->FoodColoringList = newFoodColoringList; //qilu 09/12/2016
+		 SetLocalResourceDensity();
+		 // Check if a cluster is discovered when food is collected
+		 LoopFunctions->CheckClusterFound(GetPosition());
         
       }
       newFoodList.clear();

@@ -9,6 +9,7 @@ CPFA_qt_user_functions::CPFA_qt_user_functions() :
 {
 	RegisterUserFunction<CPFA_qt_user_functions, CFootBotEntity>(&CPFA_qt_user_functions::DrawOnRobot);
 	RegisterUserFunction<CPFA_qt_user_functions, CFloorEntity>(&CPFA_qt_user_functions::DrawOnArena);
+    loopFunctions.SetQtUserFunctions(this);
 }
 
 void CPFA_qt_user_functions::DrawOnRobot(CFootBotEntity& entity) {
@@ -85,19 +86,25 @@ void CPFA_qt_user_functions::DrawOnRobot(CFootBotEntity& entity) {
 }
  
 void CPFA_qt_user_functions::DrawOnArena(CFloorEntity& entity) {
-	DrawFood();
-	DrawFidelity();
-	DrawPheromones();
-	DrawNest();
-	DrawEntryPoint();
-	DrawCircleOnArena();
+    DrawFood();
+    DrawFidelity();
+    DrawPheromones();
+    DrawNest();
+    DrawEntryPoint();
+    DrawCircleOnArena();
 
-	DrawPaths();
-    DrawParallelExitPaths();
-    DrawConnectingLines();
-	// DrawExitPath2();
+    // Draw circle sections if triggered by loop functions
+    if(loopFunctions.draw_circle_sections) {
+        DrawCircleSections(loopFunctions.circle_sections_count);
+        // loopFunctions.draw_circle_sections = false; // Reset after drawing
+    }
 
-	if(loopFunctions.DrawTargetRays == 1) DrawTargetRays();
+    // DrawPaths();
+    // DrawParallelExitPaths();
+    // DrawConnectingLines();
+    // DrawExitPath2();
+
+    if(loopFunctions.DrawTargetRays == 1) DrawTargetRays();
 }
 
 /*****
@@ -135,6 +142,11 @@ void CPFA_qt_user_functions::DrawNest() {
         /* Draw the nest on the arena */
         DrawCylinder(nest_3d, CQuaternion(), loopFunctions.NestRadius, 0.008, CColor::GREEN);
     }
+
+    // if(loopFunctions.CircleCoordinates.empty()) {
+    //     GenerateCircleCoordinates();
+    // }
+    // DrawCircleFromCoordinates();
 }
 
 void CPFA_qt_user_functions::DrawExitPath2() {
@@ -264,25 +276,66 @@ void CPFA_qt_user_functions::DrawCircleOnArena() {
     Real elevation = 0.01;   // Elevation above the floor
 
     // Real radius = 2.5; // Radius of the circle
-    Real radius = 2; // Radius of the circle
+    Real radius_circle_1 = 2; // Radius of the circle
+    Real radius_circle_2 = 1.5; // Radius of the circle
+    Real radius_circle_3 = 1; // Radius of the circle
+    Real radius_circle_4 = 0.5; // Radius of the circle
+    Real radius_circle_5 = 1.75; // Radius of the circle
+    Real radius_circle_6 = 1.25; // Radius of the circle
+    Real radius_circle_7 = 0.75; // Radius of the circle
+
 
     CColor circleColor = CColor::RED;
 
-    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius, circleColor, false);
-
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_1, circleColor, false);
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_2, circleColor, false);
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_3, circleColor, false);
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_4, circleColor, false);
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_5, circleColor, false);
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_6, circleColor, false);
+    DrawCircle(CVector3(x_coordinate, y_coordinate, elevation), CQuaternion(), radius_circle_7, circleColor, false);
     CColor xColor = CColor::RED;
 
     /* Adjust the endpoints of the "X" to fit within the circle */
-    Real diagonal_offset = radius * 0.7071; // sqrt(2)/2 ensures the endpoints lie within the circle
+    // Real diagonal_offset = radius * 0.7071; // sqrt(2)/2 ensures the endpoints lie within the circle
 
     /* Draw the "X" using two diagonal rays */
-    CVector3 start1(x_coordinate - diagonal_offset, y_coordinate - diagonal_offset, elevation); // Bottom-left corner
-    CVector3 end1(x_coordinate + diagonal_offset, y_coordinate + diagonal_offset, elevation);   // Top-right corner
-    DrawRay(CRay3(start1, end1), xColor);
+    // CVector3 start1(x_coordinate - diagonal_offset, y_coordinate - diagonal_offset, elevation); // Bottom-left corner
+    // CVector3 end1(x_coordinate + diagonal_offset, y_coordinate + diagonal_offset, elevation);   // Top-right corner
+    // DrawRay(CRay3(start1, end1), xColor);
 
-    CVector3 start2(x_coordinate - diagonal_offset, y_coordinate + diagonal_offset, elevation); // Top-left corner
-    CVector3 end2(x_coordinate + diagonal_offset, y_coordinate - diagonal_offset, elevation);   // Bottom-right corner
-    DrawRay(CRay3(start2, end2), xColor);
+    // CVector3 start2(x_coordinate - diagonal_offset, y_coordinate + diagonal_offset, elevation); // Top-left corner
+    // CVector3 end2(x_coordinate + diagonal_offset, y_coordinate - diagonal_offset, elevation);   // Bottom-right corner
+    // DrawRay(CRay3(start2, end2), xColor);
+}
+
+void CPFA_qt_user_functions::GenerateCircleCoordinates() {
+    const Real fRedCircleRadius = 2.0f; // Radius of the red circle
+    const UInt32 unNumSegments = 50;
+    const Real fDeltaAngle = CRadians::TWO_PI.GetValue() / unNumSegments;
+    
+    // Clear any existing coordinates (safety check)
+    loopFunctions.CircleCoordinates.clear();
+    
+    // Generate all circle coordinates
+    for(UInt32 i = 0; i < unNumSegments; ++i) {
+        Real fAngle = fDeltaAngle * i;
+        CVector3 cPoint(loopFunctions.RedCirclePosition.GetX() + fRedCircleRadius * Cos(CRadians(fAngle)),
+                       loopFunctions.RedCirclePosition.GetY() + fRedCircleRadius * Sin(CRadians(fAngle)),
+                       0.1f);
+        loopFunctions.CircleCoordinates.push_back(cPoint);
+    }
+}
+
+void CPFA_qt_user_functions::DrawCircleFromCoordinates() {
+    // Draw lines between consecutive points
+    for(size_t i = 0; i < loopFunctions.CircleCoordinates.size(); ++i) {
+        size_t nextIndex = (i + 1) % loopFunctions.CircleCoordinates.size();
+        DrawRay(CRay3(loopFunctions.CircleCoordinates[i], 
+                     loopFunctions.CircleCoordinates[nextIndex]), 
+                CColor::RED, 1.0f);
+    }
+    
 }
 
 // draw entry point from cpfa controller
@@ -394,6 +447,44 @@ void CPFA_qt_user_functions::DrawTargetRays() {
 		
 	//}	
 }
+
+
+// Draw lines splitting a circle into N sections
+// void CPFA_qt_user_functions::DrawCircleSections(size_t num_sections) {
+//     Real radius = 2.0; // Hardcoded radius
+//     Real x_center = 0.0;
+//     Real y_center = 0.0;
+//     Real elevation = 0.02; // Slightly above the floor
+//     CColor lineColor = CColor::BLUE;
+
+//     for(size_t i = 0; i < num_sections; ++i) {
+//         Real angle = (2.0 * ARGOS_PI * i) / num_sections;
+//         Real x_end = x_center + radius * std::cos(angle);
+//         Real y_end = y_center + radius * std::sin(angle);
+//         CRay3 ray(CVector3(x_center, y_center, elevation), CVector3(x_end, y_end, elevation));
+//         DrawRay(ray, lineColor, 2.0);
+//     }
+// }
+
+void CPFA_qt_user_functions::DrawCircleSections(size_t num_sections) {
+    Real outer_radius = 2.0; // Outer circle radius
+    Real inner_radius = 0.5; // Inner circle radius
+    Real x_center = 0.0;
+    Real y_center = 0.0;
+    Real elevation = 0.02; // Slightly above the floor
+    CColor lineColor = CColor::BLUE;
+
+    for(size_t i = 0; i < num_sections; ++i) {
+        Real angle = (2.0 * ARGOS_PI * i) / num_sections;
+        Real x_start = x_center + outer_radius * std::cos(angle);
+        Real y_start = y_center + outer_radius * std::sin(angle);
+        Real x_end = x_center + inner_radius * std::cos(angle);
+        Real y_end = y_center + inner_radius * std::sin(angle);
+        CRay3 ray(CVector3(x_start, y_start, elevation), CVector3(x_end, y_end, elevation));
+        DrawRay(ray, lineColor, 2.0);
+    }
+}
+
 
 /*
 void CPFA_qt_user_functions::DrawTargetRays() {
